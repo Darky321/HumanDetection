@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Human Detection AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #090c10;
+      --surface: #0e1318;
+      --border: #1e2d3d;
+      --accent: #00ffe0;
+      --accent2: #0077ff;
+      --danger: #ff3c5f;
+      --text: #c9d1d9;
+      --text-dim: #4a5568;
+      --mono: 'Share Tech Mono', monospace;
+      --sans: 'Barlow', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,224,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,224,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 48px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.1;
+      color: #fff;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: 12px;
+      color: var(--text-dim);
+      font-weight: 300;
+      font-size: 1rem;
+      letter-spacing: 0.5px;
+    }
+
+    /* Mode Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    .tab {
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      letter-spacing: 1px;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transition: transform 0.2s;
+    }
+
+    .tab.active {
+      color: var(--accent);
+    }
+
+    .tab.active::after {
+      transform: scaleX(1);
+    }
+
+    /* Panels */
+    .panel { display: none; animation: fadeUp 0.4s ease both; }
+    .panel.active { display: block; }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 48px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(0,255,224,0.03);
+    }
+
+    .upload-icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .upload-zone h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .upload-zone p {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    /* Button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      padding: 12px 28px;
+      background: var(--accent);
+      color: #000;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      margin-top: 16px;
+      min-height: 20px;
+      letter-spacing: 1px;
+    }
+
+    .status-bar.error { color: var(--danger); }
+
+    /* Results */
+    .results {
+      margin-top: 32px;
+    }
+
+    .results-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .result-img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      display: block;
+    }
+
+    /* Video frames grid */
+    .frames-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .frames-grid img {
+      width: 100%;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* Webcam */
+    .webcam-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .webcam-container { grid-template-columns: 1fr; }
+    }
+
+    .cam-box {
+      position: relative;
+    }
+
+    .cam-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    video, .cam-result {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #000;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cam-result {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .cam-result img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+
+    /* Loader */
+    .loader {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(0,255,224,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* Scan line animation on result */
+    .scan-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 6px;
+    }
+
+    .scan-wrap::after {
+      content: '';
+      position: absolute;
+      top: -100%;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 2s linear 1;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes scan { to { top: 110%; } }
+    @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+    /* API config note */
+    .api-note {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+
+    .api-note span { color: var(--accent2); }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="tag">// AI Vision System</div>
+    <h1>Human <span>Detection</span></h1>
+    <p class="subtitle">YOLO-powered person identification — upload media or use your webcam</p>
+  </header>
+
+  <div class="api-note">
+    Backend: <span id="api-url-display">http://localhost:8000</span>
+    &nbsp;·&nbsp; Change in script if deployed remotely
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('image')">IMAGE</button>
+    <button class="tab" onclick="switchTab('video')">VIDEO</button>
+    <button class="tab" onclick="switchTab('webcam')">WEBCAM</button>
+  </div>
+
+  <!-- IMAGE PANEL -->
+  <div class="panel active" id="panel-image">
+    <div class="upload-zone" id="img-zone">
+      <input type="file" accept="image/*" id="img-input" onchange="previewImage(this)"/>
+      <span class="upload-icon">🖼️</span>
+      <h3>Drop an image or click to browse</h3>
+      <p>JPG, PNG, WEBP supported</p>
+    </div>
+    <button class="btn" onclick="runImage()" id="img-btn" disabled>▶ RUN DETECTION</button>
+    <div class="status-bar" id="img-status"></div>
+    <div class="results" id="img-results"></div>
+  </div>
+
+  <!-- VIDEO PANEL -->
+  <div class="panel" id="panel-video">
+    <div class="upload-zone" id="vid-zone">
+      <input type="file" accept="video/*" id="vid-input" onchange="previewVideo(this)"/>
+      <span class="upload-icon">🎬</span>
+      <h3>Drop a video or click to browse</h3>
+      <p>MP4, MOV, AVI supported · Returns sampled annotated frames</p>
+    </div>
+    <button class="btn" onclick="runVideo()" id="vid-btn" disabled>▶ RUN DETECTION</button>
+    <div class="status-bar" id="vid-status"></div>
+    <div class="results" id="vid-results"></div>
+  </div>
+
+  <!-- WEBCAM PANEL -->
+  <div class="panel" id="panel-webcam">
+    <div class="webcam-container">
+      <div class="cam-box">
+        <div class="cam-label">// Live Feed</div>
+        <video id="webcam-feed" autoplay muted playsinline></video>
+      </div>
+      <div class="cam-box">
+        <div class="cam-label">// Detection Output</div>
+        <div class="cam-result" id="cam-output">Waiting for detection...</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <button class="btn" onclick="startWebcam()" id="cam-start-btn">▶ START CAMERA</button>
+      <button class="btn btn-danger" onclick="stopWebcam()" id="cam-stop-btn" disabled style="display:none;">■ STOP</button>
+    </div>
+    <div class="status-bar" id="cam-status"></div>
+  </div>
+
+</div>
+
+<script>
+  const API = "http://localhost:8000"; // ← Change this if you deploy remotely
+  document.getElementById("api-url-display").textContent = API;
+
+  // ── Tab switching ──
+  function switchTab(name) {
+    document.querySelectorAll(".tab").forEach((t,i) => {
+      t.classList.toggle("active", ["image","video","webcam"][i] === name);
+    });
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + name).classList.add("active");
+    if (name !== "webcam") stopWebcam();
+  }
+
+  // ── Image ──
+  let imgFile = null;
+  function previewImage(input) {
+    imgFile = input.files[0];
+    if (!imgFile) return;
+    document.getElementById("img-btn").disabled = false;
+    document.getElementById("img-status").textContent = "File ready: " + imgFile.name;
+    document.getElementById("img-results").innerHTML = "";
+  }
+
+  async function runImage() {
+    if (!imgFile) return;
+    setStatus("img", "loading", "Running detection...");
+    document.getElementById("img-btn").disabled = true;
+
+    const form = new FormData();
+    form.append("file", imgFile);
+
+    try {
+      const res = await fetch(`${API}/detect/image`, { method: "POST", body: form });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      document.getElementById("img-results").innerHTML = `
+        <div class="results-label">// Detection Result</div>
+        <div class="scan-wrap"><img class="result-img" src="data:image/jpeg;base64,${data.image}" /></div>`;
+      setStatus("img", "ok", "Detection complete.");
+    } catch(e) {
+      setStatus("img", "error", "Error: " + e.message);
+    }
+    document.getElementById("img-btn").disabled = false;
+  }
+
+  // ── Video ──
+  let vidFile = null;
+  function previewVideo(input) {
+    vidFile = input.files[0];
+    if (!vidFile) return;
+    document.getElementById("vid-btn").disabled = false;
+    document.getElementById("vid-status").textContent = "File ready: " + vidFile.name;
+    document.getElementById("vid-results").innerHTML = "";
+  }
+
+  async function runVideo() {
+    if (!vidFile) return;
+    setStatus("vid", "loading", "Uploading and processing video — this may take a moment...");
+    document.getElementById("vid-btn").disabled = true;
+
+    const form = new FormData();
+    form.append("file", vidFile);
+
+    try {
+      const res = await fetch(`${API}/detect/video`, { method: "POST", body: form });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const grid = data.frames.map(f =>
+        `<img src="data:image/jpeg;base64,${f}" />`
+      ).join("");
+      document.getElementById("vid-results").innerHTML = `
+        <div class="results-label">// Sampled Frames (${data.total})</div>
+        <div class="frames-grid">${grid}</div>`;
+      setStatus("vid", "ok", `Done. Showing ${data.total} annotated frames.`);
+    } catch(e) {
+      setStatus("vid", "error", "Error: " + e.message);
+    }
+    document.getElementById("vid-btn").disabled = false;
+  }
+
+  // ── Webcam ──
+  let webcamStream = null;
+  let webcamInterval = null;
+
+  async function startWebcam() {
+    try {
+      webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      document.getElementById("webcam-feed").srcObject = webcamStream;
+      document.getElementById("cam-start-btn").disabled = true;
+      document.getElementById("cam-stop-btn").style.display = "inline-flex";
+      document.getElementById("cam-stop-btn").disabled = false;
+      setStatus("cam", "ok", "Camera active — sending frames...");
+
+      // Send a frame every 500ms
+      webcamInterval = setInterval(sendWebcamFrame, 500);
+    } catch(e) {
+      setStatus("cam", "error", "Camera access denied: " + e.message);
+    }
+  }
+
+  function stopWebcam() {
+    clearInterval(webcamInterval);
+    if (webcamStream) {
+      webcamStream.getTracks().forEach(t => t.stop());
+      webcamStream = null;
+    }
+    document.getElementById("webcam-feed").srcObject = null;
+    document.getElementById("cam-start-btn").disabled = false;
+    document.getElementById("cam-stop-btn").style.display = "none";
+    document.getElementById("cam-output").innerHTML = "Waiting for detection...";
+    setStatus("cam", "", "");
+  }
+
+  async function sendWebcamFrame() {
+    const video = document.getElementById("webcam-feed");
+    if (!video.videoWidth) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    canvas.toBlob(async (blob) => {
+      const form = new FormData();
+      form.append("file", blob, "frame.jpg");
+      try {
+        const res = await fetch(`${API}/detect/webcam`, { method: "POST", body: form });
+        const data = await res.json();
+        if (data.image) {
+          document.getElementById("cam-output").innerHTML =
+            `<img src="data:image/jpeg;base64,${data.image}" />`;
+        }
+      } catch(e) { /* silently skip dropped frames */ }
+    }, "image/jpeg", 0.8);
+  }
+
+  // ── Helpers ──
+  function setStatus(prefix, type, msg) {
+    const el = document.getElementById(prefix + "-status");
+    el.className = "status-bar" + (type === "error" ? " error" : "");
+    el.innerHTML = type === "loading"
+      ? `<span class="loader"></span>${msg}`
+      : msg;
+  }
+
+  // Drag-over styling
+  document.querySelectorAll(".upload-zone").forEach(zone => {
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+    zone.addEventListener("drop", () => zone.classList.remove("drag-over"));
+  });
+</script>
+</body>
+</html>
